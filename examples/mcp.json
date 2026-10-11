@@ -3,7 +3,11 @@
   "mcpServers": {
     "academic-research": {
       "command": "uvx",
-      "args": ["academic-research-mcp"],
+      "args": [
+        "--from",
+        "git+https://github.com/EgiStr/academic-research-mcp",
+        "academic-research-mcp"
+      ],
       "env": {
         "RESEARCH_MCP_MAILTO": "you@example.org"
       }

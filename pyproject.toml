@@ -1,12 +1,12 @@
 [project]
 name = "academic-research-mcp"
 version = "0.1.0"
-description = "Keyless MCP server for academic literature search: OpenAlex, arXiv, Semantic Scholar, Crossref, Europe PMC and DOAJ — no API keys, ever."
+description = "Keyless MCP server for academic literature: search, citations, similar papers, open-access full text and PDF downloads from OpenAlex, arXiv, Crossref, Europe PMC, DOAJ and Unpaywall — no API keys, ever."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
-keywords = ["mcp", "model-context-protocol", "research", "academic", "papers", "openalex", "arxiv", "literature-review"]
+keywords = ["mcp", "model-context-protocol", "research", "academic", "papers", "openalex", "arxiv", "literature-review", "no-api-key", "citations", "open-access", "pdf-download"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",

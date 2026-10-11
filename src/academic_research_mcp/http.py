@@ -9,27 +9,42 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import os
 import time
 from typing import Any
 
 import httpx
 
+from . import config
+
 VERSION = "0.1.0"
 
-# Contact address sent to OpenAlex/Crossref/Unpaywall, which route "polite pool" traffic
-# by it. Set RESEARCH_MCP_MAILTO to your own address when deploying; the default keeps
-# the server working out of the box.
-MAILTO = os.environ.get("RESEARCH_MCP_MAILTO", "").strip()
 
-DEFAULT_TIMEOUT = float(os.environ.get("RESEARCH_MCP_TIMEOUT", "25"))
+def mailto() -> str:
+    """Contact address for the polite pools.
+
+    Resolved on every call rather than cached at import: the value may come from a config
+    file that is written after this module is imported, and a module-level constant would
+    freeze the pre-config answer.
+    """
+    return config.get("MAILTO")
+
 
 # Sources are public and keyless, so courtesy is mandatory rather than optional:
 # we serialise requests per host and keep a minimum gap between them.
-_MIN_INTERVAL = float(os.environ.get("RESEARCH_MCP_MIN_INTERVAL", "0.34"))
-
-_CACHE_TTL = float(os.environ.get("RESEARCH_MCP_CACHE_TTL", "300"))
 _CACHE_MAX = 256
+
+
+def default_timeout() -> float:
+    return config.get_float("TIMEOUT", 25.0)
+
+
+def min_interval() -> float:
+    return config.get_float("MIN_INTERVAL", 0.34)
+
+
+def cache_ttl() -> float:
+    return config.get_float("CACHE_TTL", 300.0)
+
 
 # The client and the throttle lock belong to one event loop. An asyncio.Lock or an
 # httpx.AsyncClient bound to a loop that has since closed raises "Event loop is closed" —
@@ -41,7 +56,7 @@ _cache: dict[str, tuple[float, Any]] = {}
 
 
 def user_agent() -> str:
-    contact = f"; mailto:{MAILTO}" if MAILTO else ""
+    contact = f"; mailto:{mailto()}" if mailto() else ""
     return f"academic-research-mcp/{VERSION} (+https://github.com/EgiStr/academic-research-mcp{contact})"
 
 
@@ -51,7 +66,7 @@ def _slot() -> tuple[httpx.AsyncClient, asyncio.Lock]:
     slot = _loops.get(loop)
     if slot is None:
         client = httpx.AsyncClient(
-            timeout=DEFAULT_TIMEOUT,
+            timeout=default_timeout(),
             follow_redirects=True,
             headers={"User-Agent": user_agent(), "Accept": "application/json"},
             limits=httpx.Limits(max_connections=16, max_keepalive_connections=8),
@@ -86,7 +101,7 @@ def _cache_get(key: str) -> Any | None:
     if hit is None:
         return None
     stored_at, value = hit
-    if time.monotonic() - stored_at > _CACHE_TTL:
+    if time.monotonic() - stored_at > cache_ttl():
         _cache.pop(key, None)
         return None
     return value
@@ -104,7 +119,7 @@ async def _throttle(host: str) -> None:
     """Space out requests to one host, per event loop."""
     _, lock = _slot()
     async with lock:
-        wait = _MIN_INTERVAL - (time.monotonic() - _last_call.get(host, 0.0))
+        wait = min_interval() - (time.monotonic() - _last_call.get(host, 0.0))
         if wait > 0:
             await asyncio.sleep(wait)
         _last_call[host] = time.monotonic()
@@ -137,7 +152,7 @@ async def request_json(
     try:
         response = await client.get(url, params=params, headers=headers)
     except httpx.TimeoutException as exc:
-        raise SourceError(f"{source}: timed out after {DEFAULT_TIMEOUT:.0f}s ({url})") from exc
+        raise SourceError(f"{source}: timed out after {default_timeout():.0f}s ({url})") from exc
     except httpx.HTTPError as exc:
         raise SourceError(f"{source}: network error ({exc.__class__.__name__})") from exc
 
@@ -178,7 +193,7 @@ async def request_text(
     try:
         response = await client.get(url, params=params, headers={**{"Accept": "*/*"}, **(headers or {})})
     except httpx.TimeoutException as exc:
-        raise SourceError(f"{source}: timed out after {DEFAULT_TIMEOUT:.0f}s ({url})") from exc
+        raise SourceError(f"{source}: timed out after {default_timeout():.0f}s ({url})") from exc
     except httpx.HTTPError as exc:
         raise SourceError(f"{source}: network error ({exc.__class__.__name__})") from exc
 

@@ -6,6 +6,9 @@ citations, and a compact numbered block is far cheaper to read than nested objec
 
 from __future__ import annotations
 
+from typing import Any
+
+from . import download, http
 from .models import Paper
 
 
@@ -84,4 +87,51 @@ def format_source_list(sources: list[tuple[str, str]]) -> str:
         lines.append(f"  {name:<18} {note}")
     lines.append("")
     lines.append("Use source=\"auto\" (default) to fan out across several and merge duplicates.")
+    return "\n".join(lines)
+
+
+def format_sources(providers: list[Any]) -> str:
+    """Render the live provider registry: what exists, what it does, whether it works."""
+    from .providers import Capability
+
+    if not providers:
+        return "No providers are enabled. Add a module under providers/ or enable one."
+
+    lines = ["Searched by default (source=\"auto\"):", ""]
+    auto = [p for p in providers if p.meta.included_in_auto()]
+    opt_in = [p for p in providers if not p.meta.included_in_auto() and p.meta.deprecated is None]
+    deprecated = [p for p in providers if p.meta.deprecated]
+
+    def describe(provider: Any) -> str:
+        caps = ", ".join(sorted(c.value for c in provider.meta.capabilities if c is not Capability.SEARCH))
+        tail = f"  [also: {caps}]" if caps else ""
+        return f"  {provider.meta.name:<18} {provider.meta.summary}{tail}"
+
+    for provider in auto:
+        lines.append(describe(provider))
+
+    if opt_in:
+        lines.append("")
+        lines.append("Available but not searched by default (name them explicitly):")
+        for provider in opt_in:
+            lines.append(describe(provider))
+
+    if deprecated:
+        lines.append("")
+        lines.append("Disabled:")
+        for provider in deprecated:
+            lines.append(f"  {provider.meta.name:<18} {provider.meta.deprecated}")
+
+    lines.append("")
+    if http.mailto():
+        lines.append(f"Contact address in use: {http.mailto()} (polite pools, Unpaywall).")
+    else:
+        lines.append(
+            "No contact address set. Searches still work; find_fulltext/download_pdf need one — "
+            "set RESEARCH_MCP_MAILTO in the server environment."
+        )
+    lines.append("No API keys are required by any source, and none are read.")
+
+    storage = download.storage_dir()
+    lines.append(f"Downloads are saved to: {storage}")
     return "\n".join(lines)

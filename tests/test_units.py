@@ -1,16 +1,17 @@
-"""Unit tests. Network calls are mocked: these run offline and in CI.
+"""Unit tests for the pure logic: models, dedupe, formatting, and each provider's parser.
 
-The parsing and merging logic is where the real bugs live — a source changing its field
-names, or dedupe collapsing two different papers. That is what is covered here; the
-end-to-end path is exercised by tests/test_live.py, which is opt-in.
+Network calls are mocked throughout: these run offline and in CI. Provider parsers are
+tested here rather than through the registry, because a parser is pure input→Paper and that
+is where a renamed upstream field shows up first.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from academic_research_mcp import dedupe, formatting, sources
+from academic_research_mcp import dedupe, formatting
 from academic_research_mcp.models import Paper, truncate, year_str
+from academic_research_mcp.providers import arxiv, crossref, doaj, europe_pmc, openalex, semantic_scholar
 
 
 # --------------------------------------------------------------------------- models
@@ -37,13 +38,12 @@ def test_paper_to_dict_drops_empty_fields():
 # --------------------------------------------------------------------------- OpenAlex
 
 def test_openalex_abstract_rebuilds_word_order():
-    inverted = {"second": [1], "first": [0], "third": [2]}
-    assert sources._openalex_abstract(inverted) == "first second third"
+    assert openalex._abstract({"second": [1], "first": [0], "third": [2]}) == "first second third"
 
 
 def test_openalex_abstract_handles_missing_index():
-    assert sources._openalex_abstract(None) is None
-    assert sources._openalex_abstract({}) is None
+    assert openalex._abstract(None) is None
+    assert openalex._abstract({}) is None
 
 
 def test_openalex_paper_maps_fields_and_strips_the_doi_prefix():
@@ -60,29 +60,28 @@ def test_openalex_paper_maps_fields_and_strips_the_doi_prefix():
         "keywords": [{"display_name": "RAG"}],
         "type": "article",
     }
-    paper = sources._openalex_paper(work)
+    paper = openalex.to_paper(work)
     assert paper.doi == "10.1/abc"
     assert paper.citations == 12
     assert paper.authors == ["A One", "B Two"]
     assert paper.abstract == "hello world"
     assert paper.is_open_access is True
+    assert paper.source == "OpenAlex"
 
 
 def test_openalex_paper_survives_a_work_missing_optional_blocks():
-    paper = sources._openalex_paper({"display_name": "Bare"})
+    paper = openalex.to_paper({"display_name": "Bare"})
     assert paper.title == "Bare"
     assert paper.authors == []
     assert paper.citations is None
     assert paper.abstract is None
+    assert paper.extra == {}
 
 
-def test_openalex_search_params_include_year_filter_and_mailto(monkeypatch):
-    monkeypatch.setattr(sources.http, "MAILTO", "a@b.c")
-    params = sources._openalex_params("rag", 5, 2022, "mailto")
-    assert params["search"] == "rag"
-    assert params["per-page"] == 5
-    assert params["filter"] == "from_publication_date:2022-01-01"
-    assert params["mailto"] == "a@b.c"
+def test_openalex_work_id_for_normalises_every_doi_form():
+    assert openalex.work_id_for("10.1/x") == "doi:10.1/x"
+    assert openalex.work_id_for("https://doi.org/10.1/x") == "doi:10.1/x"
+    assert openalex.work_id_for("doi:10.1/x") == "doi:10.1/x"
 
 
 # --------------------------------------------------------------------------- arXiv
@@ -103,8 +102,8 @@ ARXIV_XML = """<?xml version="1.0" encoding="UTF-8"?>
 </feed>"""
 
 
-def test_parse_arxiv_reads_every_field_and_unescapes():
-    papers = sources._parse_arxiv(ARXIV_XML)
+def test_parse_atom_reads_every_field():
+    papers = arxiv.parse_atom(ARXIV_XML)
     assert len(papers) == 1
     paper = papers[0]
     assert paper.title == "From Local to Global Retrieval"
@@ -114,14 +113,34 @@ def test_parse_arxiv_reads_every_field_and_unescapes():
     assert paper.venue == "Some Journal"
     assert paper.pdf_url == "https://arxiv.org/pdf/2401.12345v1"
     assert paper.extra["arxiv_id"] == "2401.12345v1"
+    assert paper.is_open_access is True
 
 
-def test_parse_arxiv_handles_a_feed_with_no_entries():
-    assert sources._parse_arxiv("<feed></feed>") == []
+def test_parse_atom_handles_an_empty_feed():
+    assert arxiv.parse_atom("<feed></feed>") == []
 
 
 def test_unescape_covers_the_entities_arxiv_emits():
-    assert sources._unescape("a &amp; b &lt;c&gt; &quot;d&quot; &#39;e&#39;") == "a & b <c> \"d\" 'e'"
+    assert arxiv.unescape("a &amp; b &lt;c&gt; &quot;d&quot; &#39;e&#39;") == "a & b <c> \"d\" 'e'"
+
+
+@pytest.mark.parametrize(
+    ("identifier", "expected"),
+    [
+        ("2401.12345", "2401.12345"),
+        ("arXiv:2401.12345", "2401.12345"),
+        ("2401.12345v2", "2401.12345v2"),
+        ("http://arxiv.org/abs/2401.12345v1", "2401.12345v1"),
+        ("https://arxiv.org/pdf/2401.12345", "2401.12345"),
+    ],
+)
+def test_extract_arxiv_id_preserves_the_version_suffix(identifier, expected):
+    """The version matters: v1 and v2 are different revisions, so it is not stripped."""
+    assert arxiv.extract_arxiv_id(identifier) == expected
+
+
+def test_extract_arxiv_id_returns_none_for_a_doi():
+    assert arxiv.extract_arxiv_id("10.1145/3539618") is None
 
 
 # --------------------------------------------------------------------------- Crossref
@@ -138,20 +157,39 @@ def test_crossref_paper_reads_authors_dates_and_pdf_link():
         "type": "journal-article",
         "link": [{"URL": "http://x/pdf", "content-type": "application/pdf"}],
     }
-    paper = sources._crossref_paper(item)
+    paper = crossref.to_paper(item)
     assert paper.year == 2023
     assert paper.authors == ["Ada Lovelace", "Org"]
     assert paper.abstract == "An abstract."
     assert paper.pdf_url == "http://x/pdf"
     assert paper.citations == 7
+    assert paper.source == "Crossref"
+
+
+def test_crossref_paper_tolerates_a_record_with_no_authors():
+    """Book chapters routinely have none; that is not a parse failure."""
+    paper = crossref.to_paper({"title": ["Chapter"], "DOI": "10.1/c"})
+    assert paper.authors == []
+    assert paper.title == "Chapter"
 
 
 def test_crossref_date_falls_back_through_the_date_fields():
-    assert sources._crossref_date({"issued": {"date-parts": [[1999]]}}) == 1999
-    assert sources._crossref_date({}) is None
+    assert crossref._date({"issued": {"date-parts": [[1999]]}}) == 1999
+    assert crossref._date({}) is None
 
 
-# --------------------------------------------------------------------------- Europe PMC / DOAJ
+def test_crossref_select_list_excludes_unsupported_fields():
+    """Crossref rejects an unknown `select` with HTTP 400 — `language` broke live searches."""
+    assert "language" not in crossref._SELECT.split(",")
+    assert "DOI" in crossref._SELECT and "container-title" in crossref._SELECT
+
+
+def test_clean_doi_strips_every_prefix_form():
+    for raw in ("https://doi.org/10.1/x", "http://dx.doi.org/10.1/x", "doi:10.1/x", " 10.1/x "):
+        assert crossref.clean_doi(raw) == "10.1/x"
+
+
+# --------------------------------------------------------------------------- Europe PMC
 
 def test_europe_pmc_paper_marks_open_access_and_strips_markup():
     item = {
@@ -166,7 +204,7 @@ def test_europe_pmc_paper_marks_open_access_and_strips_markup():
         "isOpenAccess": "Y",
         "abstractText": "<h4>Background</h4>Text.",
     }
-    paper = sources._epmc_paper(item)
+    paper = europe_pmc.to_paper(item)
     assert paper.title == "Trial results"
     assert paper.authors == ["A One", "B Two"]
     assert paper.citations == 4
@@ -174,46 +212,49 @@ def test_europe_pmc_paper_marks_open_access_and_strips_markup():
     assert "<" not in (paper.abstract or "")
 
 
-def test_doaj_paper_tolerates_a_string_publisher_and_title():
-    """DOAJ sends journal.publisher as either a string or {"name": ...} depending on the
-    record; a dict-only assumption crashed on live data."""
-    base = {"bibjson": {"title": "T", "journal": {"title": "J", "publisher": "Some Publisher"}}}
-    paper = sources._doaj_paper(base)
-    assert paper.extra["publisher"] == "Some Publisher"
-
-    nested = {"bibjson": {"title": "T", "journal": {"title": "J", "publisher": {"name": "Nested Pub"}}}}
-    assert sources._doaj_paper(nested).extra["publisher"] == "Nested Pub"
-
-    missing = {"bibjson": {"title": "T", "journal": {"title": "J"}}}
-    assert "publisher" not in sources._doaj_paper(missing).to_dict()
+def test_europe_pmc_paper_handles_a_closed_article():
+    paper = europe_pmc.to_paper({"title": "Closed", "id": "1", "source": "MED"})
+    assert paper.is_open_access is False
+    assert paper.pdf_url is None
 
 
-def test_doaj_paper_ignores_a_non_string_language():
-    item = {"bibjson": {"title": "T", "journal": {"title": "J", "language": ["en"]}}}
-    assert sources._doaj_paper(item).language is None
+# --------------------------------------------------------------------------- Semantic Scholar
+
+def test_semantic_scholar_paper_maps_external_ids_and_open_pdf():
+    payload = {
+        "title": "S2 Work",
+        "year": 2023,
+        "authors": [{"name": "A"}],
+        "venue": "NeurIPS",
+        "citationCount": 5,
+        "externalIds": {"DOI": "10.1/s2", "ArXiv": "2401.1", "CorpusId": 42},
+        "url": "https://s2/x",
+        "openAccessPdf": {"url": "http://x.pdf"},
+        "fieldsOfStudy": ["Computer Science"],
+    }
+    paper = semantic_scholar.to_paper(payload)
+    assert paper.doi == "10.1/s2"
+    assert paper.is_open_access is True
+    assert paper.pdf_url == "http://x.pdf"
+    assert paper.extra["CorpusId"] == 42
+    assert paper.source == "Semantic Scholar"
 
 
-def test_crossref_select_list_excludes_unsupported_fields():
-    """Crossref rejects an unknown `select` with HTTP 400 — `language` broke live searches."""
-    import asyncio
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("10.1/x", "DOI:10.1/x"),
+        ("DOI:10.1/x", "DOI:10.1/x"),
+        ("2401.12345", "ARXIV:2401.12345"),
+        ("CorpusId:42", "CorpusId:42"),
+        ("abc123", "abc123"),
+    ],
+)
+def test_semantic_scholar_paper_id_shapes_the_identifier(raw, expected):
+    assert semantic_scholar._paper_id(raw) == expected
 
-    seen: dict[str, Any] = {}
 
-    async def fake(url, params=None, **kwargs):
-        seen.update(params or {})
-        return {"message": {"items": []}}
-
-    original = sources.http.request_json
-    sources.http.request_json = fake
-    try:
-        asyncio.run(sources.crossref_search("x", 3, None))
-    finally:
-        sources.http.request_json = original
-
-    selected = seen["select"].split(",")
-    assert "language" not in selected
-    assert "DOI" in selected and "container-title" in selected
-
+# --------------------------------------------------------------------------- DOAJ
 
 def test_doaj_paper_is_always_open_access_with_a_fulltext_link():
     item = {
@@ -224,16 +265,34 @@ def test_doaj_paper_is_always_open_access_with_a_fulltext_link():
             "author": [{"name": "C Three"}],
             "identifier": [{"type": "doi", "id": "10.1/doaj"}],
             "link": [{"type": "fulltext", "url": "http://x/full"}],
-            "journal": {"title": "OA Journal", "publisher": {"name": "P"}},
+            "journal": {"title": "OA Journal"},
             "abstract": "<p>Body</p>",
             "keywords": ["k"],
         },
     }
-    paper = sources._doaj_paper(item)
+    paper = doaj.to_paper(item)
     assert paper.is_open_access is True
     assert paper.url == "http://x/full"
     assert paper.doi == "10.1/doaj"
     assert paper.abstract == "Body", "markup stripped and whitespace collapsed"
+
+
+def test_doaj_paper_tolerates_a_string_publisher_and_title():
+    """DOAJ sends journal.publisher as either a string or {"name": ...} depending on the
+    record; a dict-only assumption crashed on live data."""
+    string_pub = {"bibjson": {"title": "T", "journal": {"title": "J", "publisher": "Some Publisher"}}}
+    assert doaj.to_paper(string_pub).extra["publisher"] == "Some Publisher"
+
+    nested = {"bibjson": {"title": "T", "journal": {"title": "J", "publisher": {"name": "Nested Pub"}}}}
+    assert doaj.to_paper(nested).extra["publisher"] == "Nested Pub"
+
+    missing = {"bibjson": {"title": "T", "journal": {"title": "J"}}}
+    assert "publisher" not in doaj.to_paper(missing).to_dict()
+
+
+def test_doaj_paper_ignores_a_non_string_language():
+    item = {"bibjson": {"title": "T", "journal": {"title": "J", "language": ["en"]}}}
+    assert doaj.to_paper(item).language is None
 
 
 # --------------------------------------------------------------------------- dedupe
@@ -308,48 +367,8 @@ def test_format_paper_omits_abstract_unless_requested():
 
 
 def test_format_paper_summarises_long_author_lists():
-    paper = _p("T", authors=["A", "B", "C", "D", "E", "F"])
-    assert "et al." in formatting.format_paper(1, paper)
+    assert "et al." in formatting.format_paper(1, _p("T", authors=["A", "B", "C", "D", "E", "F"]))
 
 
 def test_format_paper_shows_the_also_in_sources():
-    paper = _p("T", extra={"also_in": ["Crossref"]})
-    assert "also indexed by: Crossref" in formatting.format_paper(1, paper)
-
-
-def test_source_list_mentions_every_source():
-    out = formatting.format_source_list([(n, sources.SOURCE_NOTES[n]) for n in sources.SOURCE_NAMES])
-    for name in sources.SOURCE_NAMES:
-        assert name in out
-
-
-def test_display_rank_orders_sources_by_trust():
-    # Keyed by the display label, which is exactly what Paper.source carries.
-    assert sources.DISPLAY_RANK["OpenAlex"] == 0
-    assert sources.DISPLAY_RANK["OpenAlex"] < sources.DISPLAY_RANK["Semantic Scholar"]
-    assert sources.DISPLAY_RANK["Semantic Scholar"] < sources.DISPLAY_RANK["Crossref"]
-
-
-def test_every_source_has_a_display_label_that_papers_and_rank_agree_on():
-    """A missing label silently ranks a source last and mislabels its records, so pin it."""
-    assert set(sources.DISPLAY_NAME) == set(sources.SOURCE_NAMES)
-    assert set(sources.DISPLAY_RANK) == set(sources.DISPLAY_NAME.values())
-    assert all(sources.DISPLAY_NAME[name] for name in sources.SOURCE_NAMES)
-
-    # Each adapter must emit the label its own DISPLAY_NAME claims.
-    for slug, label in sources.DISPLAY_NAME.items():
-        expected = {"openalex": "OpenAlex", "arxiv": "arXiv", "semantic-scholar": "Semantic Scholar", "crossref": "Crossref", "europe-pmc": "Europe PMC", "doaj": "DOAJ"}
-        assert label == expected[slug], f"{slug} label drifted; server.py sorts on this string"
-
-
-def test_paper_sources_are_all_ranked(monkeypatch):
-    """Any adapter returning an unranked label would sink to the bottom of results."""
-    samples = [
-        sources._openalex_paper({"display_name": "x"}),
-        sources._crossref_paper({"title": ["x"]}),
-        sources._epmc_paper({"title": "x"}),
-        sources._doaj_paper({"bibjson": {"title": "x"}}),
-        sources._s2_paper({"title": "x"}),
-    ]
-    for paper in samples:
-        assert paper.source in sources.DISPLAY_RANK, f"{paper.source} is unranked"
+    assert "also indexed by: Crossref" in formatting.format_paper(1, _p("T", extra={"also_in": ["Crossref"]}))
