@@ -74,11 +74,30 @@ those URLs had to be updated in the same commit as the package rename, which the
 
 4. Clear it afterwards: `Remove-Item Env:\UV_PUBLISH_TOKEN`
 
-### Do not paste the token into a chat window
+### Do not paste the token anywhere but your own shell
 
-A token pasted into a conversation must be treated as leaked — transcripts are stored. If one
-ends up there, revoke it at PyPI → *Account settings → API tokens* and mint a new one. The
-token is also not needed to *build* or to *test*: only to upload.
+A token pasted into a chat window, an issue, a commit, or a config file must be treated as
+leaked the moment it lands there — transcripts and history are stored. **Revoke it
+immediately** at PyPI → *Account settings → API tokens*, then mint a new one.
+
+This is not a formality. The first upload needs an **account-wide** token, because
+`keyless-research-mcp` does not exist on PyPI yet and so cannot be scoped. An account-wide
+token can publish a new version of *every* project you own, and PyPI does not allow
+re-uploading or withdrawing a version — someone holding it could publish a release under your
+name that can only be superseded, never deleted.
+
+Once the project exists, replace the account-wide token with one scoped to
+`keyless-research-mcp` alone, and delete the broad one.
+
+The token is needed only to **upload**. Building (`uv build`) and testing (`uv run pytest`,
+`twine check`) never require it, so the exposure window can be seconds long:
+
+```powershell
+cd path\to\keyless-research-mcp
+$env:UV_PUBLISH_TOKEN = "pypi-..."   # paste into your own terminal
+uv publish
+Remove-Item Env:\UV_PUBLISH_TOKEN    # clear it from the session
+```
 
 ---
 
