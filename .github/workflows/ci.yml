@@ -1,0 +1,65 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --python ${{ matrix.python-version }}
+
+      # Offline only: the suite mocks the network, so CI never depends on a third-party
+      # API being up, and never rate-limits anyone.
+      - name: Run tests
+        run: uv run pytest -q
+
+      - name: Check the server starts and registers its tools
+        run: |
+          uv run python -c "
+          import asyncio
+          from academic_research_mcp.server import mcp
+
+          async def main():
+              tools = await mcp.list_tools()
+              names = {t.name for t in tools}
+              expected = {'search_papers', 'get_paper', 'get_citations', 'find_fulltext', 'read_fulltext', 'list_sources'}
+              missing = expected - names
+              assert not missing, f'missing tools: {missing}'
+              print(f'{len(names)} tools registered')
+
+          asyncio.run(main())
+          "
+
+  # Live API checks are allowed to fail without blocking a merge: an upstream outage is
+  # not a regression in this repo. Run them on a schedule instead, where a failure is
+  # actionable (a source changed its field names).
+  live:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --extra dev
+      - run: uv run pytest -m live -q
+        env:
+          RESEARCH_MCP_MAILTO: ${{ secrets.RESEARCH_MCP_MAILTO }}

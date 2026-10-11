@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/specification/main/schema/mcp.json",
+  "mcpServers": {
+    "academic-research": {
+      "command": "uvx",
+      "args": ["academic-research-mcp"],
+      "env": {
+        "RESEARCH_MCP_MAILTO": "you@example.org"
+      }
+    }
+  }
+}
