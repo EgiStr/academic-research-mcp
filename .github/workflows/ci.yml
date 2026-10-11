@@ -21,9 +21,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-
-      - name: Set up Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: uv sync --extra dev --python ${{ matrix.python-version }}
@@ -31,7 +29,7 @@ jobs:
       # Offline only: the suite mocks the network, so CI never depends on a third-party
       # API being up, and never rate-limits anyone.
       - name: Run tests
-        run: uv run pytest -q
+        run: uv run --extra dev pytest -q
 
       - name: Check the server starts and registers its tools
         run: |
