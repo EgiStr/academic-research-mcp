@@ -45,7 +45,9 @@ async def search_across(
     )
 
     papers: list[Paper] = []
-    for provider, result in zip(providers, results):
+    # strict=True: both lists are built from the same provider list, so a length mismatch
+    # would mean a result was silently attributed to the wrong source.
+    for provider, result in zip(providers, results, strict=True):
         if isinstance(result, BaseException):
             errors.append(f"{provider.meta.label}: {result}")
             continue

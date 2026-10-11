@@ -25,8 +25,7 @@ def normalise_doi(doi: str | None) -> str | None:
         return None
     cleaned = doi.strip().lower()
     for prefix in ("https://doi.org/", "http://doi.org/", "http://dx.doi.org/", "doi:"):
-        if cleaned.startswith(prefix):
-            cleaned = cleaned[len(prefix) :]
+        cleaned = cleaned.removeprefix(prefix)
     return cleaned or None
 
 

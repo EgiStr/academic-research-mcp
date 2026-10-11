@@ -16,11 +16,21 @@ API = "https://www.ebi.ac.uk/europepmc/webservices/rest"
 
 
 def _sections(xml: str) -> dict[str, str]:
-    """Extract prose sections, dropping references and markup noise."""
+    """Extract prose sections, dropping references and markup noise.
+
+    `ElementTree` is used rather than pulling in `defusedxml` for one call site. It does not
+    resolve external entities, and internal entity expansion — the billion-laughs vector — is
+    refused below by rejecting a doctype outright, which is what defusedxml would do here.
+    Europe PMC is a trusted source, but the input is still attacker-influenced: anyone can
+    deposit an article.
+    """
     from xml.etree import ElementTree as ET
 
+    if "<!DOCTYPE" in xml or "<!ENTITY" in xml:
+        return {"body": re.sub(r"<[^>]+>", " ", xml)[:20000]}
+
     try:
-        root = ET.fromstring(xml)
+        root = ET.fromstring(xml)  # noqa: S314 - a doctype is refused above
     except ET.ParseError:
         return {"body": re.sub(r"<[^>]+>", " ", xml)[:20000]}
 

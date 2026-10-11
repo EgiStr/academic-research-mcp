@@ -22,8 +22,8 @@ from .registry import (
 __all__ = [
     "Capability",
     "Provider",
-    "ProviderMeta",
     "ProviderError",
+    "ProviderMeta",
     "active_providers",
     "all_providers",
     "auto_search_providers",

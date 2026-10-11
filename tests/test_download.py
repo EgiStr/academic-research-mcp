@@ -11,7 +11,6 @@ import pytest
 from academic_research_mcp import config, download, security
 from academic_research_mcp.models import Paper
 
-
 # --------------------------------------------------------------------------- security
 
 @pytest.mark.parametrize(
@@ -45,19 +44,19 @@ def test_is_private_address_refuses_an_unparseable_host():
 
 @pytest.mark.parametrize("url", ["file:///etc/passwd", "ftp://example.org/x.pdf", "javascript:alert(1)", "notaurl"])
 def test_assert_public_url_refuses_non_http_schemes(url):
-    with pytest.raises(security.UnsafeUrl):
+    with pytest.raises(security.UnsafeUrlError):
         security.assert_public_url(url)
 
 
 def test_assert_public_url_refuses_a_literal_private_address():
-    with pytest.raises(security.UnsafeUrl, match="non-public address"):
+    with pytest.raises(security.UnsafeUrlError, match="non-public address"):
         security.assert_public_url("http://169.254.169.254/latest/meta-data/")
 
 
 def test_assert_public_url_refuses_a_host_resolving_to_a_private_address(monkeypatch):
     """A public-looking name pointing at an internal address must still be refused."""
     monkeypatch.setattr(security, "resolve", lambda hostname: ["10.0.0.5"])
-    with pytest.raises(security.UnsafeUrl, match="non-public address"):
+    with pytest.raises(security.UnsafeUrlError, match="non-public address"):
         security.assert_public_url("http://internal.example.com/paper.pdf")
 
 
@@ -67,7 +66,7 @@ def test_assert_public_url_accepts_a_public_host(monkeypatch):
 
 
 def test_assert_public_url_rejects_a_url_without_a_host():
-    with pytest.raises(security.UnsafeUrl, match="no host"):
+    with pytest.raises(security.UnsafeUrlError, match="no host"):
         security.assert_public_url("http:///paper.pdf")
 
 
@@ -164,7 +163,7 @@ def patch_client(monkeypatch, stream, *, allow_public=True):
     else:
 
         def blocked(url):
-            raise security.UnsafeUrl("blocked")
+            raise security.UnsafeUrlError("blocked")
 
         monkeypatch.setattr(security, "assert_public_url", blocked)
     monkeypatch.setattr(download.http, "_slot", lambda: (FakeClient(stream), None))

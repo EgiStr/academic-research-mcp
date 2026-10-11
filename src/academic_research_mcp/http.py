@@ -191,7 +191,7 @@ async def request_text(
     await _throttle(host)
 
     try:
-        response = await client.get(url, params=params, headers={**{"Accept": "*/*"}, **(headers or {})})
+        response = await client.get(url, params=params, headers={"Accept": "*/*", **(headers or {})})
     except httpx.TimeoutException as exc:
         raise SourceError(f"{source}: timed out after {default_timeout():.0f}s ({url})") from exc
     except httpx.HTTPError as exc:

@@ -11,9 +11,9 @@ from __future__ import annotations
 import pytest
 
 from academic_research_mcp import providers as reg
+from academic_research_mcp.models import Paper
 from academic_research_mcp.providers import Capability, Provider, ProviderMeta
 from academic_research_mcp.providers import registry as registry_module
-from academic_research_mcp.models import Paper
 
 
 @pytest.fixture(autouse=True)
@@ -155,7 +155,7 @@ def test_disabled_provider_is_not_registered():
 def test_validate_rejects_a_capability_that_is_not_implemented():
     """The bug this catches: meta claims DOWNLOAD, no download() exists, and the mistake
     would otherwise surface as NotImplementedError in front of a user."""
-    with pytest.raises(TypeError, match="claims Capability.DOWNLOAD but does not override download"):
+    with pytest.raises(TypeError, match=r"claims Capability\.DOWNLOAD but does not override download"):
 
         @reg.register
         class Liar(Provider):

@@ -72,7 +72,7 @@ async def _load_paper(identifier: str, source: str) -> tuple[Paper | None, str, 
     for provider in candidates:
         try:
             paper = await provider.lookup(identifier)
-        except Exception as exc:  # noqa: BLE001 - try the next provider rather than aborting
+        except Exception as exc:
             errors.append(f"{provider.meta.label}: {exc}")
             continue
         if paper:
@@ -271,12 +271,13 @@ async def get_citations(
     for provider in providers:
         try:
             papers = await provider.citations(clean, direction, limit)
-        except Exception as exc:  # noqa: BLE001 - try the next provider
+        except Exception as exc:
             errors.append(f"{provider.meta.label}: {exc}")
             continue
         if papers:
             label = "Papers citing" if direction == "cited-by" else "References of"
-            return f"{label} {clean} (showing {len(papers)}, via {provider.meta.label}):\n\n{formatting.format_results(papers, abstract_chars=0)}"
+            body = formatting.format_results(papers, abstract_chars=0)
+            return f"{label} {clean} (showing {len(papers)}, via {provider.meta.label}):\n\n{body}"
 
     hint = "It may be too new, or not indexed with references." if direction == "cites" else "It may be too recent to have been cited yet."
     detail = f"No {direction.replace('-', ' ')} records found for {clean}. {hint}"
@@ -305,7 +306,7 @@ async def find_fulltext(doi: str) -> str:
     for provider in providers:
         try:
             result = await provider.fulltext_link((doi or "").strip())
-        except Exception as exc:  # noqa: BLE001 - try the next provider
+        except Exception as exc:
             errors.append(f"{provider.meta.label}: {exc}")
             continue
 
@@ -325,7 +326,10 @@ async def find_fulltext(doi: str) -> str:
                 lines.append(f"  pdf:  {best['pdf_url']}")
             if best.get("url") and best.get("url") != best.get("pdf_url"):
                 lines.append(f"  page: {best['url']}")
-            lines.append(f"  version: {best.get('version') or '?'} · licence: {best.get('license') or '?'} · host: {best.get('host_type') or '?'}")
+            version = best.get("version") or "?"
+            licence = best.get("license") or "?"
+            host_type = best.get("host_type") or "?"
+            lines.append(f"  version: {version} · licence: {licence} · host: {host_type}")
             lines.append("")
 
         others = [loc for loc in (result.get("locations") or []) if isinstance(loc, dict)]
@@ -363,7 +367,7 @@ async def read_fulltext(identifier: str, max_chars: int = 20000) -> str:
     for provider in providers:
         try:
             result = await provider.fulltext_text((identifier or "").strip(), limit)
-        except Exception as exc:  # noqa: BLE001 - try the next provider
+        except Exception as exc:
             errors.append(f"{provider.meta.label}: {exc}")
             continue
 
@@ -466,7 +470,7 @@ async def _resolve_pdf(provider: Provider, doi: str) -> str | None:
     """Ask a resolver provider for a direct PDF URL."""
     try:
         result = await provider.fulltext_link(doi)
-    except Exception:  # noqa: BLE001 - a resolver failing is not fatal here
+    except Exception:
         return None
     if not result.get("ok"):
         return None

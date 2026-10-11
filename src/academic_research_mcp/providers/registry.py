@@ -17,7 +17,7 @@ import importlib
 import logging
 import pkgutil
 import sys
-from typing import Iterable, Type
+from collections.abc import Iterable
 
 from .base import Capability, Provider
 
@@ -31,7 +31,7 @@ class ProviderError(RuntimeError):
     """A lookup that could not be satisfied, with a message fit to show the model."""
 
 
-def register(cls: Type[Provider]) -> Type[Provider]:
+def register(cls: type[Provider]) -> type[Provider]:
     """Class decorator that adds a provider to the registry and validates it."""
     meta = getattr(cls, "meta", None)
     if meta is None:
@@ -70,8 +70,8 @@ def discover(force: bool = False) -> None:
         if hasattr(finder_cache, "invalidate_caches"):
             try:
                 finder_cache.invalidate_caches()
-            except Exception:  # noqa: BLE001 - a stubborn finder must not stop discovery
-                pass
+            except Exception as exc:
+                log.debug("A path finder refused to invalidate its cache: %s", exc)
 
     for module in pkgutil.iter_modules(package.__path__):
         if module.name.startswith("_") or module.name == "base":
@@ -84,7 +84,7 @@ def discover(force: bool = False) -> None:
             # rebind it to a fresh copy of this registry and silently duplicate state.
             if full_name not in sys.modules:
                 importlib.import_module(full_name)
-        except Exception as exc:  # noqa: BLE001 - a bad provider must not break the server
+        except Exception as exc:
             log.warning("Skipping provider module %s: %s", module.name, exc)
     _DISCOVERED = True
 

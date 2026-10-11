@@ -44,7 +44,10 @@ def parse_atom(xml: str) -> list[Paper]:
     this keeps a heavyweight XML dependency out of the search path."""
     papers: list[Paper] = []
     for block in _ENTRY.findall(xml):
-        def tag(name: str) -> str | None:
+        # `block` is bound as a default argument so the closure captures this iteration's
+        # entry rather than looking it up when called (B023). Correct either way today, but
+        # only by accident of when tag() is invoked.
+        def tag(name: str, block: str = block) -> str | None:
             match = _TAGS[name].search(block)
             return unescape(" ".join(match.group(1).split())) if match else None
 

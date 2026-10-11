@@ -230,7 +230,10 @@ class OpenAlex(Provider):
         # and `related_works` is on the same record. Both must come from the same source, so
         # this re-reads with keywords included rather than trusting the caller's Paper, which
         # may be an arXiv record carrying none.
-        enriched = await http.request_json(f"{BASE}/{str(anchor.get('id') or '').rsplit('/', 1)[-1]}", _params({"select": "id,keywords,concepts"}), source=self.meta.label)
+        anchor_id = str(anchor.get("id") or "").rsplit("/", 1)[-1]
+        enriched = await http.request_json(
+            f"{BASE}/{anchor_id}", _params({"select": "id,keywords,concepts"}), source=self.meta.label
+        )
         if enriched:
             anchor = {**anchor, "keywords": enriched.get("keywords"), "concepts": enriched.get("concepts")}
         return anchor

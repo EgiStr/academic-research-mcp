@@ -91,7 +91,7 @@ def test_numeric_values_fall_back_when_unparseable(monkeypatch):
 
 def test_storage_defaults_under_the_home_directory(monkeypatch):
     monkeypatch.delenv("RESEARCH_MCP_STORAGE", raising=False)
-    monkeypatch.setattr(config, "config_paths", lambda: [])
+    monkeypatch.setattr(config, "config_paths", list)
     config.reload_config()
     assert download.storage_dir() == config.Path.home() / ".academic-research-mcp" / "papers"
 

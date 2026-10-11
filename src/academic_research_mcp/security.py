@@ -13,7 +13,7 @@ import ipaddress
 from urllib.parse import urlparse
 
 
-class UnsafeUrl(ValueError):
+class UnsafeUrlError(ValueError):
     """Raised for a URL the server refuses to fetch."""
 
 
@@ -33,22 +33,21 @@ def is_private_address(address: str) -> bool:
     # 100.64.0.0/10 (CGNAT) is not covered by is_private on every Python version.
     if ip.version == 4 and ip in ipaddress.ip_network("100.64.0.0/10"):
         return True
-    if ip.version == 6 and ip in ipaddress.ip_network("fc00::/7"):
-        return True
-    return False
+    # fc00::/7 is unique-local IPv6, which is_private misses on older versions.
+    return ip.version == 6 and ip in ipaddress.ip_network("fc00::/7")
 
 
 def assert_public_url(url: str) -> None:
-    """Validate scheme, host and every resolved address. Raises UnsafeUrl on refusal."""
+    """Validate scheme, host and every resolved address. Raises UnsafeUrlError on refusal."""
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
-        raise UnsafeUrl(f"Only http and https URLs can be fetched (got {parsed.scheme or 'no'} scheme).")
+        raise UnsafeUrlError(f"Only http and https URLs can be fetched (got {parsed.scheme or 'no'} scheme).")
     if not parsed.hostname:
-        raise UnsafeUrl("That URL has no host.")
+        raise UnsafeUrlError("That URL has no host.")
 
     for address in resolve(parsed.hostname):
         if is_private_address(address):
-            raise UnsafeUrl(f"{parsed.hostname} resolves to the non-public address {address}; refusing to fetch it.")
+            raise UnsafeUrlError(f"{parsed.hostname} resolves to the non-public address {address}; refusing to fetch it.")
 
 
 def resolve(hostname: str) -> list[str]:
@@ -64,5 +63,5 @@ def resolve(hostname: str) -> list[str]:
     try:
         infos = socket.getaddrinfo(hostname, None, proto=socket.IPPROTO_TCP)
     except OSError as exc:
-        raise UnsafeUrl(f"Cannot resolve {hostname}: {exc}") from exc
+        raise UnsafeUrlError(f"Cannot resolve {hostname}: {exc}") from exc
     return sorted({info[4][0] for info in infos})

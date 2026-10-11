@@ -22,7 +22,18 @@ class FakeProvider(Provider):
 
     meta: ProviderMeta
 
-    def __init__(self, *, search_results=None, lookup_result=None, citations=None, link=None, text=None, download=None, similar=None, boom=False):
+    def __init__(
+        self,
+        *,
+        search_results=None,
+        lookup_result=None,
+        citations=None,
+        link=None,
+        text=None,
+        download=None,
+        similar=None,
+        boom=False,
+    ):
         self._search_results = search_results if search_results is not None else []
         self._lookup_result = lookup_result
         self._citations = citations if citations is not None else []
@@ -297,7 +308,8 @@ async def test_find_similar_prefers_native_relatedness_and_says_so():
 async def test_find_similar_falls_back_to_keywords_and_labels_it_weaker():
     """The distinction matters: 'papers this source relates' is a stronger claim than
     'papers with similar words', so the output must not blur them."""
-    lookup = make("lookup", "Lookup", [Capability.LOOKUP], reliability=95, lookup_result=Paper(title="Graph RAG for QA", source="Lookup", doi="10.1/x"))
+    seed = Paper(title="Graph RAG for QA", source="Lookup", doi="10.1/x")
+    lookup = make("lookup", "Lookup", [Capability.LOOKUP], reliability=95, lookup_result=seed)
     searcher = make(
         "searcher",
         "Searcher",
@@ -535,7 +547,7 @@ async def test_search_across_reports_omitted_count():
 
 async def test_search_across_reports_an_unknown_source():
     registry_module._register_for_tests(make("p", "P", [Capability.SEARCH], reliability=90))
-    papers, errors, _ = await server.search_across("x", ["ghost"], 5, None)
+    _, errors, _ = await server.search_across("x", ["ghost"], 5, None)
     assert any("ghost" in e for e in errors)
 
 

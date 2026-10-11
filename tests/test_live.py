@@ -185,13 +185,13 @@ async def test_find_similar_says_which_kind_of_signal_it_used():
     Both outcomes are acceptable; silently passing a keyword match off as computed relatedness
     is not.
     """
-    from academic_research_mcp.providers import openalex as oa_module
     from academic_research_mcp import similar as similar_module
+    from academic_research_mcp.providers import openalex as oa_module
 
     provider = oa_module.OpenAlex()
     seed = await provider.search("graph retrieval augmented generation", 1, None)
     assert seed
-    found, errors, method = await similar_module.find_similar([seed[0]], 3)
+    found, _, method = await similar_module.find_similar([seed[0]], 3)
     assert method in {"native", "keywords", "none"}, method
     if method == "native":
         assert found, "a native signal must come with papers"

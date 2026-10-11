@@ -48,7 +48,7 @@ async def find_similar(papers: list[Paper], limit: int) -> tuple[list[Paper], li
     for provider in similar_providers():
         try:
             found = await provider.similar(papers[0], limit)
-        except Exception as exc:  # noqa: BLE001 - one source failing must not stop the search
+        except Exception as exc:
             errors.append(f"{provider.meta.label}: {exc}")
             unanswered = True
             continue

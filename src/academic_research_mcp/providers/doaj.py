@@ -55,7 +55,7 @@ def to_paper(item: dict[str, Any]) -> Paper:
         pdf_url=fulltext,
         is_open_access=True,
         abstract=truncate(re.sub(r"<[^>]+>", " ", bib.get("abstract") or ""), 2000),
-        keywords=[k for k in (bib.get("keywords") or [])][:10],
+        keywords=list(bib.get("keywords") or [])[:10],
         language=language if isinstance(language, str) else None,
         source_id=item.get("id"),
         extra={"publisher": publisher} if publisher else {},
@@ -82,4 +82,4 @@ class Doaj(Provider):
             {"pageSize": limit},
             source=self.meta.label,
         )
-        return [to_paper(r) for r in payload.get("results", [])]
+        return [to_paper(item) for item in payload.get("results", [])]
