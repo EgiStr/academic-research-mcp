@@ -55,8 +55,8 @@ jobs:
           }
 
           async def main():
-              env = {k: v for k, v in os.environ.items() if not k.startswith("PAPERSEARCH_MCP_")}
-              params = StdioServerParameters(command=sys.executable, args=["-m", "papersearch_mcp"], env=env)
+              env = {k: v for k, v in os.environ.items() if not k.startswith("keyless_research_mcp_")}
+              params = StdioServerParameters(command=sys.executable, args=["-m", "keyless_research_mcp"], env=env)
               async with stdio_client(params) as (read, write):
                   async with ClientSession(read, write) as session:
                       await session.initialize()
@@ -81,5 +81,5 @@ jobs:
       - run: uv sync --extra dev
       - run: uv run pytest -m live -q
         env:
-          PAPERSEARCH_MCP_MAILTO: ${{ secrets.PAPERSEARCH_MCP_MAILTO }}
+          KEYLESS_RESEARCH_MCP_MAILTO: ${{ secrets.KEYLESS_RESEARCH_MCP_MAILTO }}
 

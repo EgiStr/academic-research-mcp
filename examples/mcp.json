@@ -1,13 +1,13 @@
 {
   "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/specification/main/schema/mcp.json",
   "mcpServers": {
-    "papersearch": {
+    "keyless-research": {
       "command": "uvx",
       "args": [
-        "papersearch-mcp"
+        "keyless-research-mcp"
       ],
       "env": {
-        "PAPERSEARCH_MCP_MAILTO": "you@example.org"
+        "KEYLESS_RESEARCH_MCP_MAILTO": "you@example.org"
       }
     }
   }

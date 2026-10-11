@@ -31,7 +31,7 @@ _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 def storage_dir() -> Path:
-    """Where PDFs land. Override with PAPERSEARCH_MCP_STORAGE, in the env or a config file."""
+    """Where PDFs land. Override with KEYLESS_RESEARCH_MCP_STORAGE, in the env or a config file."""
     return config.app_dir() / "papers"
 
 

@@ -3,17 +3,17 @@
 # dxmie-slide loads remote MCP servers over streamable HTTP (it never spawns stdio
 # processes), so run the server in HTTP mode:
 #
-#   PAPERSEARCH_MCP_MAILTO=you@example.org PAPERSEARCH_MCP_TRANSPORT=streamable-http uv run papersearch-mcp
+#   KEYLESS_RESEARCH_MCP_MAILTO=you@example.org KEYLESS_RESEARCH_MCP_TRANSPORT=streamable-http uv run keyless-research-mcp
 #
 # then add the server in Settings -> Tools, or set MCP_SERVERS in the app's environment:
 #
-#   MCP_SERVERS=[{"name":"papersearch","url":"http://127.0.0.1:8000/mcp","transport":"http"}]
+#   MCP_SERVERS=[{"name":"keyless-research","url":"http://127.0.0.1:8000/mcp","transport":"http"}]
 #
 # Nothing else is needed: the server reads no API keys, so there are no headers to send.
 # Its paper_search built-in already covers OpenAlex/arXiv/Semantic Scholar; adding this
 # server is what buys you Crossref, Europe PMC, DOAJ, citation graphs and full text.
 {
-  "name": "papersearch",
+  "name": "keyless-research",
   "url": "http://127.0.0.1:8000/mcp",
   "transport": "http"
 }

@@ -9,12 +9,12 @@ from __future__ import annotations
 
 import pytest
 
-from papersearch_mcp import config as academic_config
-from papersearch_mcp import http as academic_http
-from papersearch_mcp import server
-from papersearch_mcp.models import Paper
-from papersearch_mcp.providers import Capability, Provider, ProviderMeta
-from papersearch_mcp.providers import registry as registry_module
+from keyless_research_mcp import config as academic_config
+from keyless_research_mcp import http as academic_http
+from keyless_research_mcp import server
+from keyless_research_mcp.models import Paper
+from keyless_research_mcp.providers import Capability, Provider, ProviderMeta
+from keyless_research_mcp.providers import registry as registry_module
 
 
 class FakeProvider(Provider):
@@ -366,10 +366,10 @@ async def test_find_fulltext_surfaces_a_missing_mailto():
         "Resolver",
         [Capability.FULLTEXT_LINK],
         reliability=90,
-        link={"ok": False, "reason": "Set PAPERSEARCH_MCP_MAILTO in the server environment."},
+        link={"ok": False, "reason": "Set KEYLESS_RESEARCH_MCP_MAILTO in the server environment."},
     )
     registry_module._register_for_tests(resolver)
-    assert "PAPERSEARCH_MCP_MAILTO" in await server.find_fulltext("10.1/x")
+    assert "KEYLESS_RESEARCH_MCP_MAILTO" in await server.find_fulltext("10.1/x")
 
 
 async def test_read_fulltext_renders_sections():
@@ -525,8 +525,8 @@ async def test_the_server_speaks_over_stdio_and_lists_the_same_tools():
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
 
-    env = {k: v for k, v in os.environ.items() if not k.startswith("PAPERSEARCH_MCP_")}
-    params = StdioServerParameters(command=sys.executable, args=["-m", "papersearch_mcp"], env=env)
+    env = {k: v for k, v in os.environ.items() if not k.startswith("keyless_research_mcp_")}
+    params = StdioServerParameters(command=sys.executable, args=["-m", "keyless_research_mcp"], env=env)
 
     async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
         await session.initialize()
@@ -546,7 +546,7 @@ async def test_every_tool_has_a_description_a_model_can_choose_from():
 
 
 async def test_list_sources_shows_deprecation_reasons(monkeypatch):
-    monkeypatch.setenv("PAPERSEARCH_MCP_MAILTO", "")
+    monkeypatch.setenv("KEYLESS_RESEARCH_MCP_MAILTO", "")
     academic_config.reload_config()
     gone = make("gone", "Gone", [Capability.SEARCH], reliability=90, deprecated="free tier withdrawn")
     registry_module._register_for_tests(gone)
@@ -555,14 +555,14 @@ async def test_list_sources_shows_deprecation_reasons(monkeypatch):
 
 
 async def test_list_sources_warns_about_a_missing_mailto(monkeypatch):
-    monkeypatch.setenv("PAPERSEARCH_MCP_MAILTO", "")
+    monkeypatch.setenv("KEYLESS_RESEARCH_MCP_MAILTO", "")
     academic_config.reload_config()
     registry_module._register_for_tests(make("p", "P", [Capability.SEARCH], reliability=90))
-    assert "PAPERSEARCH_MCP_MAILTO" in await server.list_sources()
+    assert "KEYLESS_RESEARCH_MCP_MAILTO" in await server.list_sources()
 
 
 async def test_list_sources_mentions_mailto_once_configured(monkeypatch):
-    monkeypatch.setenv("PAPERSEARCH_MCP_MAILTO", "researcher@example.org")
+    monkeypatch.setenv("KEYLESS_RESEARCH_MCP_MAILTO", "researcher@example.org")
     academic_config.reload_config()
     registry_module._register_for_tests(make("p", "P", [Capability.SEARCH], reliability=90))
     assert "researcher@example.org" in await server.list_sources()

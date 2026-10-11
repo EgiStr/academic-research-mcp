@@ -3,7 +3,7 @@
 An MCP host spawns this server as a child process, and several hosts pass no `env` at all
 (the Python MCP client's `StdioServerParameters(env=None)` does exactly that), so a value
 set in the parent's environment never reaches us. Configuration therefore cannot rely on the
-environment alone, or `PAPERSEARCH_MCP_MAILTO` silently does nothing and `find_fulltext` fails
+environment alone, or `KEYLESS_RESEARCH_MCP_MAILTO` silently does nothing and `find_fulltext` fails
 with "no contact address set" while the user is looking right at theirs.
 
 Resolution order, first hit wins:
@@ -23,8 +23,8 @@ from pathlib import Path
 # re-read after editing the file.
 _values: dict[str, str] | None = None
 
-APP_DIR_NAME = "papersearch-mcp"
-ENV_PREFIX = "PAPERSEARCH_MCP_"
+APP_DIR_NAME = "keyless-research-mcp"
+ENV_PREFIX = "KEYLESS_RESEARCH_MCP_"
 
 
 def config_paths() -> list[Path]:
@@ -33,7 +33,7 @@ def config_paths() -> list[Path]:
     override = os.environ.get(f"{ENV_PREFIX}CONFIG")
     if override:
         paths.append(Path(override).expanduser())
-    paths.append(Path.cwd() / ".papersearch-mcp.env")
+    paths.append(Path.cwd() / ".keyless-research-mcp.env")
     paths.append(Path.home() / f".{APP_DIR_NAME}" / "config.env")
     return paths
 
@@ -91,7 +91,7 @@ def get_float(name: str, default: float) -> float:
 
 def app_dir() -> Path:
     """The application's own directory: the storage root, where downloads and the default
-    config file live. `PAPERSEARCH_MCP_STORAGE` replaces it outright."""
+    config file live. `KEYLESS_RESEARCH_MCP_STORAGE` replaces it outright."""
     configured = get("STORAGE")
     if configured:
         return Path(configured).expanduser()

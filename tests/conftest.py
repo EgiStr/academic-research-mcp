@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import pytest
 
-from papersearch_mcp import config
-from papersearch_mcp.providers import Provider
-from papersearch_mcp.providers import registry as registry_module
+from keyless_research_mcp import config
+from keyless_research_mcp.providers import Provider
+from keyless_research_mcp.providers import registry as registry_module
 
 
 @pytest.fixture(autouse=True)
@@ -33,7 +33,7 @@ def rediscover():
     registry leaves it empty. These modules are already imported and their classes still
     reference the live registry object, so rebinding fresh instances is enough.
     """
-    from papersearch_mcp.providers import (
+    from keyless_research_mcp.providers import (
         arxiv,
         crossref,
         doaj,

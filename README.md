@@ -1,4 +1,4 @@
-# papersearch-mcp
+# keyless-research-mcp
 
 An MCP server for academic literature that needs **no API key at all**. Search papers, follow
 citations, find related work, locate a free copy, read open-access text, and save PDFs —
@@ -48,13 +48,13 @@ tool where an argument would do.
 ## Install
 
 ```bash
-uvx papersearch-mcp
+uvx keyless-research-mcp
 ```
 
 Or straight from source, before or instead of the released version:
 
 ```bash
-uvx --from git+https://github.com/EgiStr/papersearch-mcp papersearch-mcp
+uvx --from git+https://github.com/EgiStr/keyless-research-mcp keyless-research-mcp
 ```
 
 ### Claude Desktop / Claude Code
@@ -62,11 +62,11 @@ uvx --from git+https://github.com/EgiStr/papersearch-mcp papersearch-mcp
 ```json
 {
   "mcpServers": {
-    "papersearch": {
+    "keyless-research": {
       "command": "uvx",
-      "args": ["papersearch-mcp"],
+      "args": ["keyless-research-mcp"],
       "env": {
-        "PAPERSEARCH_MCP_MAILTO": "you@example.org"
+        "KEYLESS_RESEARCH_MCP_MAILTO": "you@example.org"
       }
     }
   }
@@ -78,7 +78,7 @@ See `examples/` for ready-made configs, including one for dxmie-slide.
 ### HTTP transport
 
 ```bash
-PAPERSEARCH_MCP_TRANSPORT=streamable-http papersearch-mcp
+KEYLESS_RESEARCH_MCP_TRANSPORT=streamable-http keyless-research-mcp
 ```
 
 ## Configuration
@@ -91,25 +91,25 @@ Resolution order, first hit wins: the environment, then a config file.
 
 Config file locations, most specific first:
 
-1. `$PAPERSEARCH_MCP_CONFIG` if set
-2. `./.papersearch-mcp.env` (the project directory)
-3. `~/.papersearch-mcp/config.env`
+1. `$KEYLESS_RESEARCH_MCP_CONFIG` if set
+2. `./.keyless-research-mcp.env` (the project directory)
+3. `~/.keyless-research-mcp/config.env`
 
 ```ini
-# ~/.papersearch-mcp/config.env
-PAPERSEARCH_MCP_MAILTO=you@example.org
-PAPERSEARCH_MCP_STORAGE=/data/papers
-PAPERSEARCH_MCP_TIMEOUT=30
+# ~/.keyless-research-mcp/config.env
+KEYLESS_RESEARCH_MCP_MAILTO=you@example.org
+KEYLESS_RESEARCH_MCP_STORAGE=/data/papers
+KEYLESS_RESEARCH_MCP_TIMEOUT=30
 ```
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PAPERSEARCH_MCP_MAILTO` | *(empty)* | Contact address for the polite pools. Only `find_fulltext` and `download_pdf` need it. |
-| `PAPERSEARCH_MCP_STORAGE` | `~/.papersearch-mcp` | Root for downloads; PDFs land in `papers/` below it. |
-| `PAPERSEARCH_MCP_TIMEOUT` | `25` | Per-request timeout in seconds. |
-| `PAPERSEARCH_MCP_MIN_INTERVAL` | `0.34` | Minimum gap between requests to the same host. |
-| `PAPERSEARCH_MCP_CACHE_TTL` | `300` | How long a response is reused. |
-| `PAPERSEARCH_MCP_TRANSPORT` | `stdio` | `stdio` or `streamable-http`. |
+| `KEYLESS_RESEARCH_MCP_MAILTO` | *(empty)* | Contact address for the polite pools. Only `find_fulltext` and `download_pdf` need it. |
+| `KEYLESS_RESEARCH_MCP_STORAGE` | `~/.keyless-research-mcp` | Root for downloads; PDFs land in `papers/` below it. |
+| `KEYLESS_RESEARCH_MCP_TIMEOUT` | `25` | Per-request timeout in seconds. |
+| `KEYLESS_RESEARCH_MCP_MIN_INTERVAL` | `0.34` | Minimum gap between requests to the same host. |
+| `KEYLESS_RESEARCH_MCP_CACHE_TTL` | `300` | How long a response is reused. |
+| `KEYLESS_RESEARCH_MCP_TRANSPORT` | `stdio` | `stdio` or `streamable-http`. |
 
 ## Adding a source
 
@@ -125,7 +125,7 @@ So adding a source is three steps and touches no existing file:
 **1. Write the module.**
 
 ```python
-# src/papersearch_mcp/providers/zenodo.py
+# src/keyless_research_mcp/providers/zenodo.py
 from .. import http
 from ..models import Paper, year_str
 from .base import Capability, Provider, ProviderMeta
@@ -297,7 +297,7 @@ dipertimbangkan hanya jika jelas lebih berguna daripada menambah kebingungan.
   biomedicine. For humanities, Crossref and OpenAlex are the strongest here.
 - **`read_fulltext` is life-sciences only**, because Europe PMC is the only source here with
   machine-readable article text.
-- **`find_fulltext` needs `PAPERSEARCH_MCP_MAILTO`.** Unpaywall requires a caller identity; it is
+- **`find_fulltext` needs `KEYLESS_RESEARCH_MCP_MAILTO`.** Unpaywall requires a caller identity; it is
   free and it only asks who is asking.
 - **`related_works` is occasionally wrong.** OpenAlex returned an unrelated record for one
   test paper. The tool names its source so you can judge; it does not invent confidence.
@@ -333,8 +333,8 @@ actually contains the `providers/` package, then publishes **via PyPI Trusted Pu
 (OIDC)** — GitHub mints a short-lived identity token that PyPI verifies, so no API token is
 stored in this repository or in GitHub secrets.
 
-Set that up once, on PyPI: *Your projects → papersearch-mcp → Publishing → Add a new pending
-publisher*, with owner `EgiStr`, repository `papersearch-mcp`, workflow `release.yml`,
+Set that up once, on PyPI: *Your projects → keyless-research-mcp → Publishing → Add a new pending
+publisher*, with owner `EgiStr`, repository `keyless-research-mcp`, workflow `release.yml`,
 environment `pypi`.
 
 Note that PyPI does not allow re-uploading a version. A release that reaches PyPI can only be

@@ -7,10 +7,10 @@ name: release
 # file. That is why there is no `password:` secret below — a stored token can leak and has
 # to be rotated, an OIDC exchange cannot.
 #
-# To set it up, on PyPI: Your projects -> papersearch-mcp -> Publishing ->
+# To set it up, on PyPI: Your projects -> keyless-research-mcp -> Publishing ->
 # Add a new pending publisher, with:
 #   Owner:            EgiStr
-#   Repository:       papersearch-mcp
+#   Repository:       keyless-research-mcp
 #   Workflow name:    release.yml
 #   Environment:      pypi
 
@@ -49,7 +49,7 @@ jobs:
 
           wheel = glob.glob("dist/*.whl")[0]
           names = zipfile.ZipFile(wheel).namelist()
-          providers = [n for n in names if n.startswith("papersearch_mcp/providers/")]
+          providers = [n for n in names if n.startswith("keyless_research_mcp/providers/")]
           assert providers, f"no providers in {wheel}: {names}"
           expected = {"openalex", "arxiv", "crossref", "europe_pmc", "doaj", "unpaywall", "semantic_scholar"}
           present = {n.rsplit("/", 1)[-1].removesuffix(".py") for n in providers} & expected

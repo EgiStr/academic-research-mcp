@@ -128,7 +128,7 @@ def format_sources(providers: list[Any]) -> str:
     else:
         lines.append(
             "No contact address set. Searches still work; find_fulltext/download_pdf need one — "
-            "set PAPERSEARCH_MCP_MAILTO in the server environment."
+            "set KEYLESS_RESEARCH_MCP_MAILTO in the server environment."
         )
     lines.append("No API keys are required by any source, and none are read.")
 

@@ -57,7 +57,7 @@ _cache: dict[str, tuple[float, Any]] = {}
 
 def user_agent() -> str:
     contact = f"; mailto:{mailto()}" if mailto() else ""
-    return f"papersearch-mcp/{VERSION} (+https://github.com/EgiStr/papersearch-mcp{contact})"
+    return f"keyless-research-mcp/{VERSION} (+https://github.com/EgiStr/keyless-research-mcp{contact})"
 
 
 def _slot() -> tuple[httpx.AsyncClient, asyncio.Lock]:
