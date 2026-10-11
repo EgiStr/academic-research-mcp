@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # Weekly, so a source silently changing its field names is found without anyone pushing.
+  schedule:
+    - cron: "0 6 * * 1"
 
 jobs:
   test:
@@ -15,10 +18,10 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
@@ -31,19 +34,26 @@ jobs:
       - name: Run tests
         run: uv run --extra dev pytest -q
 
+      - name: Lint
+        run: uv run --extra dev ruff check src tests
+
       - name: Check the server starts and registers its tools
         run: |
           uv run python -c "
           import asyncio
           from academic_research_mcp.server import mcp
 
+          EXPECTED = {
+              'search_papers', 'get_paper', 'find_similar', 'get_citations',
+              'find_fulltext', 'read_fulltext', 'download_pdf', 'list_sources',
+          }
+
           async def main():
               tools = await mcp.list_tools()
-              names = {t.name for t in tools}
-              expected = {'search_papers', 'get_paper', 'get_citations', 'find_fulltext', 'read_fulltext', 'list_sources'}
-              missing = expected - names
+              names = {t[0] if isinstance(t, tuple) else t.name for t in tools}
+              missing = EXPECTED - names
               assert not missing, f'missing tools: {missing}'
-              print(f'{len(names)} tools registered')
+              print(f'{len(names)} tools registered: {sorted(names)}')
 
           asyncio.run(main())
           "
@@ -55,9 +65,10 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
       - run: uv sync --extra dev
       - run: uv run pytest -m live -q
         env:
           RESEARCH_MCP_MAILTO: ${{ secrets.RESEARCH_MCP_MAILTO }}
+
