@@ -1,0 +1,78 @@
+name: release
+
+# Publishes to PyPI on a tag, using PyPI Trusted Publishing (OIDC).
+#
+# No API token is stored anywhere: GitHub mints a short-lived identity token and PyPI
+# verifies it against the trusted publisher configured for this repository and workflow
+# file. That is why there is no `password:` secret below — a stored token can leak and has
+# to be rotated, an OIDC exchange cannot.
+#
+# To set it up, on PyPI: Your projects -> papersearch-mcp -> Publishing ->
+# Add a new pending publisher, with:
+#   Owner:            EgiStr
+#   Repository:       papersearch-mcp
+#   Workflow name:    release.yml
+#   Environment:      pypi
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: # lets you rehearse the build without publishing
+
+jobs:
+  # A tag that fails its tests must not reach PyPI. PyPI will not let you re-upload a
+  # version, so a broken release cannot be taken back — only superseded.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --extra dev
+      - run: uv run --extra dev pytest -q
+      - run: uv run --extra dev ruff check src tests
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - name: Build
+        run: uv build
+      - name: Check the built wheel really contains the provider package
+        run: |
+          # The whole architecture is the providers/ package. If a build config change
+          # dropped it, the published server would have no sources at all.
+          uvx check-wheel-contents dist/*.whl
+          python - <<'PY'
+          import glob, zipfile
+
+          wheel = glob.glob("dist/*.whl")[0]
+          names = zipfile.ZipFile(wheel).namelist()
+          providers = [n for n in names if n.startswith("papersearch_mcp/providers/")]
+          assert providers, f"no providers in {wheel}: {names}"
+          expected = {"openalex", "arxiv", "crossref", "europe_pmc", "doaj", "unpaywall", "semantic_scholar"}
+          present = {n.rsplit("/", 1)[-1].removesuffix(".py") for n in providers} & expected
+          missing = expected - present
+          assert not missing, f"providers missing from the wheel: {missing}"
+          print(f"{wheel}: {len(names)} files, {len(present)} providers present")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    # Must match the environment named in the PyPI trusted publisher.
+    environment: pypi
+    permissions:
+      id-token: write # the OIDC token PyPI verifies
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        # No password. Trusted Publishing is the authentication.

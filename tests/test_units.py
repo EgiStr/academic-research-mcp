@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import pytest
 
-from academic_research_mcp import dedupe, formatting
-from academic_research_mcp.models import Paper, truncate, year_str
-from academic_research_mcp.providers import arxiv, crossref, doaj, europe_pmc, openalex, semantic_scholar
+from papersearch_mcp import dedupe, formatting
+from papersearch_mcp.models import Paper, truncate, year_str
+from papersearch_mcp.providers import arxiv, crossref, doaj, europe_pmc, openalex, semantic_scholar
 
 # --------------------------------------------------------------------------- models
 

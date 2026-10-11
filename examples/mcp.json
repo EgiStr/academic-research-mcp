@@ -1,15 +1,13 @@
 {
   "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/specification/main/schema/mcp.json",
   "mcpServers": {
-    "academic-research": {
+    "papersearch": {
       "command": "uvx",
       "args": [
-        "--from",
-        "git+https://github.com/EgiStr/academic-research-mcp",
-        "academic-research-mcp"
+        "papersearch-mcp"
       ],
       "env": {
-        "RESEARCH_MCP_MAILTO": "you@example.org"
+        "PAPERSEARCH_MCP_MAILTO": "you@example.org"
       }
     }
   }

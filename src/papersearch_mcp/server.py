@@ -1,4 +1,4 @@
-"""academic-research-mcp — a keyless MCP server for academic literature.
+"""papersearch-mcp — a keyless MCP server for academic literature.
 
 Architecture: two layers, which is the shape that survives upstream churn.
 
@@ -35,7 +35,7 @@ from .providers import Capability, Provider, resolve_many, with_capability
 from .search import search_across
 
 mcp = MCPServer(
-    "academic-research",
+    "papersearch",
     instructions=(
         "Search and read academic literature without any API key. "
         "Start with search_papers (source=\"auto\" searches several sources and merges duplicates), "
@@ -294,7 +294,7 @@ async def find_fulltext(doi: str) -> str:
         doi: e.g. "10.1038/s41586-023-06221-2".
 
     Asks every enabled open-access resolver (Unpaywall) for a publisher- or
-    repository-hosted copy. Needs a contact email: set RESEARCH_MCP_MAILTO in the server
+    repository-hosted copy. Needs a contact email: set PAPERSEARCH_MCP_MAILTO in the server
     environment (it is free — Unpaywall only asks who is calling). Returns the best link
     plus other locations, or a clear reason when no free copy exists.
     """
@@ -408,8 +408,8 @@ async def download_pdf(
         max_results: How many candidate locations to try before giving up (1-6, default 3).
 
     Tries, in order: the URL you passed, the record's own open-access link, then each
-    enabled resolver. Files land in ~/.academic-research-mcp/papers (override with
-    RESEARCH_MCP_STORAGE) with a name derived from the paper, and an existing file is never
+    enabled resolver. Files land in ~/.papersearch-mcp/papers (override with
+    PAPERSEARCH_MCP_STORAGE) with a name derived from the paper, and an existing file is never
     overwritten. Only public http(s) addresses are fetched, and only real PDFs are kept.
     Check the licence before redistributing what you download.
     """
@@ -499,7 +499,7 @@ async def list_sources() -> str:
 
 def main() -> None:
     """Entry point. Transport defaults to stdio, which is what MCP hosts spawn."""
-    transport = os.environ.get("RESEARCH_MCP_TRANSPORT", "stdio").strip().lower()
+    transport = os.environ.get("PAPERSEARCH_MCP_TRANSPORT", "stdio").strip().lower()
     if transport in ("http", "streamable-http"):
         mcp.run(transport="streamable-http")
     else:

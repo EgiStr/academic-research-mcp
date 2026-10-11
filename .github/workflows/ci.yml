@@ -39,24 +39,35 @@ jobs:
 
       - name: Check the server starts and registers its tools
         run: |
-          uv run python -c "
-          import asyncio
-          from academic_research_mcp.server import mcp
+          # Over the real stdio transport, not by reaching into the module: this is what a
+          # host does, and the only way an import-time or registration break shows up.
+          # An earlier version read `t[0] if isinstance(t, tuple) else t.name`, which fell
+          # through to iterating ListToolsResult's own fields and passed while checking
+          # nothing. Reading `.tools` is the actual API.
+          uv run python - <<'PY'
+          import asyncio, os, sys
+          from mcp import ClientSession, StdioServerParameters
+          from mcp.client.stdio import stdio_client
 
           EXPECTED = {
-              'search_papers', 'get_paper', 'find_similar', 'get_citations',
-              'find_fulltext', 'read_fulltext', 'download_pdf', 'list_sources',
+              "search_papers", "get_paper", "find_similar", "get_citations",
+              "find_fulltext", "read_fulltext", "download_pdf", "list_sources",
           }
 
           async def main():
-              tools = await mcp.list_tools()
-              names = {t[0] if isinstance(t, tuple) else t.name for t in tools}
-              missing = EXPECTED - names
-              assert not missing, f'missing tools: {missing}'
-              print(f'{len(names)} tools registered: {sorted(names)}')
+              env = {k: v for k, v in os.environ.items() if not k.startswith("PAPERSEARCH_MCP_")}
+              params = StdioServerParameters(command=sys.executable, args=["-m", "papersearch_mcp"], env=env)
+              async with stdio_client(params) as (read, write):
+                  async with ClientSession(read, write) as session:
+                      await session.initialize()
+                      result = await session.list_tools()
+                      names = {t.name for t in result.tools}
+                      extra, missing = names - EXPECTED, EXPECTED - names
+                      assert not extra and not missing, f"tool set changed: extra={extra} missing={missing}"
+                      print(f"{len(names)} tools registered")
 
           asyncio.run(main())
-          "
+          PY
 
   # Live API checks are allowed to fail without blocking a merge: an upstream outage is
   # not a regression in this repo. Run them on a schedule instead, where a failure is
@@ -70,5 +81,5 @@ jobs:
       - run: uv sync --extra dev
       - run: uv run pytest -m live -q
         env:
-          RESEARCH_MCP_MAILTO: ${{ secrets.RESEARCH_MCP_MAILTO }}
+          PAPERSEARCH_MCP_MAILTO: ${{ secrets.PAPERSEARCH_MCP_MAILTO }}
 

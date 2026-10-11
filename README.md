@@ -1,4 +1,4 @@
-# academic-research-mcp
+# papersearch-mcp
 
 An MCP server for academic literature that needs **no API key at all**. Search papers, follow
 citations, find related work, locate a free copy, read open-access text, and save PDFs —
@@ -11,6 +11,22 @@ Built for AI agents that need to cite real papers instead of inventing them.
 Every source here is public infrastructure: OpenAlex, arXiv, Crossref, Europe PMC, DOAJ,
 Unpaywall. No signup, no quota, nothing to leak. One optional contact address lets you join
 the "polite pools" that OpenAlex and Crossref reserve for identified callers.
+
+### How this differs from similar servers
+
+Several academic MCP servers exist. The differences worth checking, since they are the ones
+that change what you can do:
+
+- **No key at all.** Servers that cover Semantic Scholar or PubMed well typically want a key
+  for the parts that matter, and hand you a rate-limited shell without one. Semantic Scholar
+  is included here, but honestly labelled: excluded from default search because keyless
+  requests get throttled, and available by name.
+- **Beyond search.** Most stop at "find papers". This also follows citations, finds related
+  work, locates a free legal copy, reads open-access full text, and saves the PDF.
+- **Sources are plugins, not code.** Adding a source is one file and touches nothing else;
+  the test suite proves it by dropping a module in at runtime. See "Adding a source".
+- **Failures are visible.** A dead source returns partial results *plus* the error. An empty
+  result set and a broken source never look the same.
 
 ## Tools
 
@@ -32,21 +48,25 @@ tool where an argument would do.
 ## Install
 
 ```bash
-uvx --from git+https://github.com/EgiStr/academic-research-mcp academic-research-mcp
+uvx papersearch-mcp
 ```
 
-Once published to PyPI this shortens to `uvx academic-research-mcp`.
+Or straight from source, before or instead of the released version:
+
+```bash
+uvx --from git+https://github.com/EgiStr/papersearch-mcp papersearch-mcp
+```
 
 ### Claude Desktop / Claude Code
 
 ```json
 {
   "mcpServers": {
-    "academic-research": {
+    "papersearch": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/EgiStr/academic-research-mcp", "academic-research-mcp"],
+      "args": ["papersearch-mcp"],
       "env": {
-        "RESEARCH_MCP_MAILTO": "you@example.org"
+        "PAPERSEARCH_MCP_MAILTO": "you@example.org"
       }
     }
   }
@@ -58,7 +78,7 @@ See `examples/` for ready-made configs, including one for dxmie-slide.
 ### HTTP transport
 
 ```bash
-RESEARCH_MCP_TRANSPORT=streamable-http academic-research-mcp
+PAPERSEARCH_MCP_TRANSPORT=streamable-http papersearch-mcp
 ```
 
 ## Configuration
@@ -71,25 +91,25 @@ Resolution order, first hit wins: the environment, then a config file.
 
 Config file locations, most specific first:
 
-1. `$RESEARCH_MCP_CONFIG` if set
-2. `./.academic-research-mcp.env` (the project directory)
-3. `~/.academic-research-mcp/config.env`
+1. `$PAPERSEARCH_MCP_CONFIG` if set
+2. `./.papersearch-mcp.env` (the project directory)
+3. `~/.papersearch-mcp/config.env`
 
 ```ini
-# ~/.academic-research-mcp/config.env
-RESEARCH_MCP_MAILTO=you@example.org
-RESEARCH_MCP_STORAGE=/data/papers
-RESEARCH_MCP_TIMEOUT=30
+# ~/.papersearch-mcp/config.env
+PAPERSEARCH_MCP_MAILTO=you@example.org
+PAPERSEARCH_MCP_STORAGE=/data/papers
+PAPERSEARCH_MCP_TIMEOUT=30
 ```
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `RESEARCH_MCP_MAILTO` | *(empty)* | Contact address for the polite pools. Only `find_fulltext` and `download_pdf` need it. |
-| `RESEARCH_MCP_STORAGE` | `~/.academic-research-mcp` | Root for downloads; PDFs land in `papers/` below it. |
-| `RESEARCH_MCP_TIMEOUT` | `25` | Per-request timeout in seconds. |
-| `RESEARCH_MCP_MIN_INTERVAL` | `0.34` | Minimum gap between requests to the same host. |
-| `RESEARCH_MCP_CACHE_TTL` | `300` | How long a response is reused. |
-| `RESEARCH_MCP_TRANSPORT` | `stdio` | `stdio` or `streamable-http`. |
+| `PAPERSEARCH_MCP_MAILTO` | *(empty)* | Contact address for the polite pools. Only `find_fulltext` and `download_pdf` need it. |
+| `PAPERSEARCH_MCP_STORAGE` | `~/.papersearch-mcp` | Root for downloads; PDFs land in `papers/` below it. |
+| `PAPERSEARCH_MCP_TIMEOUT` | `25` | Per-request timeout in seconds. |
+| `PAPERSEARCH_MCP_MIN_INTERVAL` | `0.34` | Minimum gap between requests to the same host. |
+| `PAPERSEARCH_MCP_CACHE_TTL` | `300` | How long a response is reused. |
+| `PAPERSEARCH_MCP_TRANSPORT` | `stdio` | `stdio` or `streamable-http`. |
 
 ## Adding a source
 
@@ -105,7 +125,7 @@ So adding a source is three steps and touches no existing file:
 **1. Write the module.**
 
 ```python
-# src/academic_research_mcp/providers/zenodo.py
+# src/papersearch_mcp/providers/zenodo.py
 from .. import http
 from ..models import Paper, year_str
 from .base import Capability, Provider, ProviderMeta
@@ -277,7 +297,7 @@ dipertimbangkan hanya jika jelas lebih berguna daripada menambah kebingungan.
   biomedicine. For humanities, Crossref and OpenAlex are the strongest here.
 - **`read_fulltext` is life-sciences only**, because Europe PMC is the only source here with
   machine-readable article text.
-- **`find_fulltext` needs `RESEARCH_MCP_MAILTO`.** Unpaywall requires a caller identity; it is
+- **`find_fulltext` needs `PAPERSEARCH_MCP_MAILTO`.** Unpaywall requires a caller identity; it is
   free and it only asks who is asking.
 - **`related_works` is occasionally wrong.** OpenAlex returned an unrelated record for one
   test paper. The tool names its source so you can judge; it does not invent confidence.
@@ -298,6 +318,34 @@ uv build
 
 `-m live` is the alarm for upstream change: it fails when a source renames a field or drops a
 free tier, which is exactly when you want to know.
+
+### Releasing
+
+Publishing is driven by `.github/workflows/release.yml`, on a `v*` tag.
+
+1. Bump `version` in `pyproject.toml`, commit, and push.
+2. Run the release workflow once by hand (`workflow_dispatch`) to rehearse the build and the
+   test gate without publishing.
+3. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
+
+The workflow re-runs the tests and lint on the tagged commit, asserts the built wheel
+actually contains the `providers/` package, then publishes **via PyPI Trusted Publishing
+(OIDC)** — GitHub mints a short-lived identity token that PyPI verifies, so no API token is
+stored in this repository or in GitHub secrets.
+
+Set that up once, on PyPI: *Your projects → papersearch-mcp → Publishing → Add a new pending
+publisher*, with owner `EgiStr`, repository `papersearch-mcp`, workflow `release.yml`,
+environment `pypi`.
+
+Note that PyPI does not allow re-uploading a version. A release that reaches PyPI can only be
+superseded, never withdrawn, which is why the tag-triggered run gates on the tests first.
+
+### Publishing by hand
+
+```bash
+uv build
+uv publish            # reads UV_PUBLISH_TOKEN, or a ~/.pypirc / keyring entry
+```
 
 ## License
 

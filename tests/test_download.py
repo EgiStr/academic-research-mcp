@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import pytest
 
-from academic_research_mcp import config, download, security
-from academic_research_mcp.models import Paper
+from papersearch_mcp import config, download, security
+from papersearch_mcp.models import Paper
 
 # --------------------------------------------------------------------------- security
 
@@ -149,7 +149,7 @@ class FakeClient:
 @pytest.fixture()
 def storage(tmp_path, monkeypatch):
     """Point the storage root at a temp dir and return the papers/ directory it implies."""
-    monkeypatch.setenv("RESEARCH_MCP_STORAGE", str(tmp_path))
+    monkeypatch.setenv("PAPERSEARCH_MCP_STORAGE", str(tmp_path))
     config.reload_config()
     papers = tmp_path / "papers"
     papers.mkdir(parents=True, exist_ok=True)
@@ -220,8 +220,8 @@ async def test_fetch_pdf_does_not_overwrite_an_existing_file(storage, monkeypatc
 
 
 async def test_storage_dir_follows_the_environment(monkeypatch, tmp_path):
-    """RESEARCH_MCP_STORAGE is the root; PDFs land one level below it in papers/."""
-    monkeypatch.setenv("RESEARCH_MCP_STORAGE", str(tmp_path))
+    """PAPERSEARCH_MCP_STORAGE is the root; PDFs land one level below it in papers/."""
+    monkeypatch.setenv("PAPERSEARCH_MCP_STORAGE", str(tmp_path))
     config.reload_config()
     storage = download.storage_dir()
     assert storage.parent == tmp_path

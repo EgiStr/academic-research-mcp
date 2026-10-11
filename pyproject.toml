@@ -1,5 +1,5 @@
 [project]
-name = "academic-research-mcp"
+name = "papersearch-mcp"
 version = "0.1.0"
 description = "Keyless MCP server for academic literature: search, citations, similar papers, open-access full text and PDF downloads from OpenAlex, arXiv, Crossref, Europe PMC, DOAJ and Unpaywall — no API keys, ever."
 readme = "README.md"
@@ -28,11 +28,11 @@ dev = [
 ]
 
 [project.scripts]
-academic-research-mcp = "academic_research_mcp:main"
+papersearch-mcp = "papersearch_mcp:main"
 
 [project.urls]
-Homepage = "https://github.com/EgiStr/academic-research-mcp"
-Issues = "https://github.com/EgiStr/academic-research-mcp/issues"
+Homepage = "https://github.com/EgiStr/papersearch-mcp"
+Issues = "https://github.com/EgiStr/papersearch-mcp/issues"
 
 [build-system]
 requires = ["uv_build>=0.11.1,<0.12.0"]

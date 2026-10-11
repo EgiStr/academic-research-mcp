@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import pytest
 
-from academic_research_mcp import providers as reg
-from academic_research_mcp.models import Paper
-from academic_research_mcp.providers import Capability, Provider, ProviderMeta
-from academic_research_mcp.providers import registry as registry_module
+from papersearch_mcp import providers as reg
+from papersearch_mcp.models import Paper
+from papersearch_mcp.providers import Capability, Provider, ProviderMeta
+from papersearch_mcp.providers import registry as registry_module
 
 
 @pytest.fixture(autouse=True)
@@ -34,7 +34,7 @@ def rediscover():
     stays empty. Rebinding the classes is enough here: the modules are already imported and
     their classes still reference the live registry object.
     """
-    from academic_research_mcp.providers import (
+    from papersearch_mcp.providers import (
         arxiv,
         crossref,
         doaj,

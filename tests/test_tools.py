@@ -9,12 +9,12 @@ from __future__ import annotations
 
 import pytest
 
-from academic_research_mcp import config as academic_config
-from academic_research_mcp import http as academic_http
-from academic_research_mcp import server
-from academic_research_mcp.models import Paper
-from academic_research_mcp.providers import Capability, Provider, ProviderMeta
-from academic_research_mcp.providers import registry as registry_module
+from papersearch_mcp import config as academic_config
+from papersearch_mcp import http as academic_http
+from papersearch_mcp import server
+from papersearch_mcp.models import Paper
+from papersearch_mcp.providers import Capability, Provider, ProviderMeta
+from papersearch_mcp.providers import registry as registry_module
 
 
 class FakeProvider(Provider):
@@ -366,10 +366,10 @@ async def test_find_fulltext_surfaces_a_missing_mailto():
         "Resolver",
         [Capability.FULLTEXT_LINK],
         reliability=90,
-        link={"ok": False, "reason": "Set RESEARCH_MCP_MAILTO in the server environment."},
+        link={"ok": False, "reason": "Set PAPERSEARCH_MCP_MAILTO in the server environment."},
     )
     registry_module._register_for_tests(resolver)
-    assert "RESEARCH_MCP_MAILTO" in await server.find_fulltext("10.1/x")
+    assert "PAPERSEARCH_MCP_MAILTO" in await server.find_fulltext("10.1/x")
 
 
 async def test_read_fulltext_renders_sections():
@@ -493,8 +493,60 @@ async def test_list_sources_separates_auto_from_opt_in():
     assert "optin" in out
 
 
+EXPECTED_TOOLS = {
+    "search_papers",
+    "get_paper",
+    "find_similar",
+    "get_citations",
+    "find_fulltext",
+    "read_fulltext",
+    "download_pdf",
+    "list_sources",
+}
+
+
+async def test_the_registered_tool_set_is_exactly_what_we_document():
+    """The tool surface is the product; a silent addition changes the model's choices.
+
+    Note the two shapes, because they are easy to confuse and a wrong read passes silently:
+    the in-process `mcp.list_tools()` returns a plain list, while a client's
+    `session.list_tools()` returns a ListToolsResult whose `.tools` must be read.
+    """
+    tools = await server.mcp.list_tools()
+    names = {t.name for t in tools}
+    assert names == EXPECTED_TOOLS, f"extra={names - EXPECTED_TOOLS} missing={EXPECTED_TOOLS - names}"
+
+
+async def test_the_server_speaks_over_stdio_and_lists_the_same_tools():
+    """End to end through the real transport, the way a host starts this server."""
+    import os
+    import sys
+
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+
+    env = {k: v for k, v in os.environ.items() if not k.startswith("PAPERSEARCH_MCP_")}
+    params = StdioServerParameters(command=sys.executable, args=["-m", "papersearch_mcp"], env=env)
+
+    async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+        await session.initialize()
+        result = await session.list_tools()
+        assert {t.name for t in result.tools} == EXPECTED_TOOLS
+
+
+async def test_every_tool_has_a_description_a_model_can_choose_from():
+    """With eight tools the model picks by description, so an absent or stub one makes a
+    tool unreachable in practice. Cheap, and it catches a truncated docstring."""
+    result = await server.mcp.list_tools()
+    assert result, "no tools registered at all"
+    for tool in result:
+        description = (tool.description or "").strip()
+        assert len(description) > 40, f"{tool.name} has no usable description: {description!r}"
+        assert tool.input_schema, f"{tool.name} declares no input schema"
+
+
 async def test_list_sources_shows_deprecation_reasons(monkeypatch):
-    monkeypatch.setenv("RESEARCH_MCP_MAILTO", "")
+    monkeypatch.setenv("PAPERSEARCH_MCP_MAILTO", "")
     academic_config.reload_config()
     gone = make("gone", "Gone", [Capability.SEARCH], reliability=90, deprecated="free tier withdrawn")
     registry_module._register_for_tests(gone)
@@ -503,14 +555,14 @@ async def test_list_sources_shows_deprecation_reasons(monkeypatch):
 
 
 async def test_list_sources_warns_about_a_missing_mailto(monkeypatch):
-    monkeypatch.setenv("RESEARCH_MCP_MAILTO", "")
+    monkeypatch.setenv("PAPERSEARCH_MCP_MAILTO", "")
     academic_config.reload_config()
     registry_module._register_for_tests(make("p", "P", [Capability.SEARCH], reliability=90))
-    assert "RESEARCH_MCP_MAILTO" in await server.list_sources()
+    assert "PAPERSEARCH_MCP_MAILTO" in await server.list_sources()
 
 
 async def test_list_sources_mentions_mailto_once_configured(monkeypatch):
-    monkeypatch.setenv("RESEARCH_MCP_MAILTO", "researcher@example.org")
+    monkeypatch.setenv("PAPERSEARCH_MCP_MAILTO", "researcher@example.org")
     academic_config.reload_config()
     registry_module._register_for_tests(make("p", "P", [Capability.SEARCH], reliability=90))
     assert "researcher@example.org" in await server.list_sources()

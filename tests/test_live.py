@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from academic_research_mcp import config, dedupe, http
-from academic_research_mcp.providers import (
+from papersearch_mcp import config, dedupe, http
+from papersearch_mcp.providers import (
     arxiv,
     crossref,
     doaj,
@@ -131,18 +131,18 @@ async def test_europe_pmc_similar_returns_related_articles():
 async def test_unpaywall_finds_an_open_copy():
     provider = unpaywall.Unpaywall()
     if not http.mailto():
-        pytest.skip("Unpaywall needs RESEARCH_MCP_MAILTO")
+        pytest.skip("Unpaywall needs PAPERSEARCH_MCP_MAILTO")
     result = await provider.fulltext_link("10.1038/s41586-023-06221-2")
     assert result.get("ok") is True, result.get("reason")
     assert result.get("best")
 
 
 async def test_unpaywall_explains_a_missing_mailto(monkeypatch):
-    monkeypatch.delenv("RESEARCH_MCP_MAILTO", raising=False)
+    monkeypatch.delenv("PAPERSEARCH_MCP_MAILTO", raising=False)
     config.reload_config()
     result = await unpaywall.Unpaywall().fulltext_link("10.1/x")
     assert result["ok"] is False
-    assert "RESEARCH_MCP_MAILTO" in str(result["reason"])
+    assert "PAPERSEARCH_MCP_MAILTO" in str(result["reason"])
 
 
 async def test_europe_pmc_fulltext_returns_sections():
@@ -165,7 +165,7 @@ async def test_semantic_scholar_works_or_says_it_is_rate_limited():
 
 async def test_arxiv_download_returns_a_real_pdf(tmp_path, monkeypatch):
     """The download path, end to end: resolve, fetch, verify the magic bytes."""
-    monkeypatch.setenv("RESEARCH_MCP_STORAGE", str(tmp_path))
+    monkeypatch.setenv("PAPERSEARCH_MCP_STORAGE", str(tmp_path))
     config.reload_config()
 
     provider = arxiv.Arxiv()
@@ -185,8 +185,8 @@ async def test_find_similar_says_which_kind_of_signal_it_used():
     Both outcomes are acceptable; silently passing a keyword match off as computed relatedness
     is not.
     """
-    from academic_research_mcp import similar as similar_module
-    from academic_research_mcp.providers import openalex as oa_module
+    from papersearch_mcp import similar as similar_module
+    from papersearch_mcp.providers import openalex as oa_module
 
     provider = oa_module.OpenAlex()
     seed = await provider.search("graph retrieval augmented generation", 1, None)

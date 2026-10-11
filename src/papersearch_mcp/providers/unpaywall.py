@@ -44,7 +44,7 @@ class Unpaywall(Provider):
             return {
                 "ok": False,
                 "reason": (
-                    "Unpaywall requires a contact email. Set RESEARCH_MCP_MAILTO "
+                    "Unpaywall requires a contact email. Set PAPERSEARCH_MCP_MAILTO "
                     "(e.g. you@example.org) in the server environment and restart."
                 ),
             }
